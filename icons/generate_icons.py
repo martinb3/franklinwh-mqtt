@@ -73,17 +73,19 @@ ICONS: dict[str, tuple[list[str], dict[str, tuple[int, int, int]]]] = {
         ],
         {"W": (200, 200, 200), "A": (255, 150, 0)},
     ),
-    # Sun, for solar production.
+    # Sun, for solar production. Mirrored on both axes: an 8x8 glyph reads as
+    # a mistake rather than a style the moment one side carries more pixels
+    # than the other. test_icons.py enforces it.
     "fwh_solar": (
         [
-            "R..R..R.",
+            "R..RR..R",
             ".R.RR.R.",
             "..YYYY..",
             "RRYYYYRR",
             "RRYYYYRR",
             "..YYYY..",
             ".R.RR.R.",
-            "R..R..R.",
+            "R..RR..R",
         ],
         {"Y": (255, 200, 0), "R": (255, 110, 0)},
     ),
