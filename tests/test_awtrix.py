@@ -23,8 +23,8 @@ def reading(**overrides):
 
 
 def test_format_power_watts():
-    assert format_power(450) == "450W"
-    assert format_power(0) == "0W"
+    assert format_power(450) == "0.5kW"
+    assert format_power(0) == "0.0kW"
 
 
 def test_format_power_kilowatts():
@@ -32,9 +32,15 @@ def test_format_power_kilowatts():
     assert format_power(-1500) == "-1.5kW"
 
 
-def test_format_power_signed_import_export():
-    assert format_power(18, signed=True) == "+18W"
-    assert format_power(-2300, signed=True) == "-2.3kW"
+def test_grid_import_shows_no_plus_sign():
+    # Importing is the ordinary state and reads as a bare number, like the
+    # other apps. Only export is called out.
+    assert json.loads(payload_for("grid", reading(grid_w=2400.0)))["text"] == "2.4kW"
+    assert json.loads(payload_for("grid", reading(grid_w=18.0)))["text"] == "0.0kW"
+
+
+def test_grid_export_keeps_negative_sign():
+    assert json.loads(payload_for("grid", reading(grid_w=-2300.0)))["text"] == "-2.3kW"
 
 
 def test_soc_payload_rounds():
@@ -44,14 +50,20 @@ def test_soc_payload_rounds():
 
 @pytest.mark.parametrize("watts", [-2.0, -1.0, -0.4, 0.0, 1.0, 2.0])
 def test_deadband_collapses_noise_in_both_directions(watts):
-    assert json.loads(payload_for("solar", reading(solar_w=watts)))["text"] == "0W"
-    assert json.loads(payload_for("load", reading(load_w=watts)))["text"] == "0W"
-    assert json.loads(payload_for("grid", reading(grid_w=watts)))["text"] == "0W"
+    assert json.loads(payload_for("solar", reading(solar_w=watts)))["text"] == "0.0kW"
+    assert json.loads(payload_for("load", reading(load_w=watts)))["text"] == "0.0kW"
+    assert json.loads(payload_for("grid", reading(grid_w=watts)))["text"] == "0.0kW"
 
 
-@pytest.mark.parametrize("watts,expected", [(3.0, "3W"), (-3.0, "-3W")])
-def test_just_outside_deadband_passes_through(watts, expected):
+@pytest.mark.parametrize("watts,expected", [(60.0, "0.1kW"), (-60.0, "-0.1kW")])
+def test_values_outside_deadband_pass_through(watts, expected):
+    # Chosen above 50W: below that, kW rounding renders everything as 0.0kW
+    # regardless of the deadband, so a smaller value would prove nothing.
     assert json.loads(payload_for("solar", reading(solar_w=watts)))["text"] == expected
+
+
+def test_small_negative_never_renders_as_negative_zero():
+    assert json.loads(payload_for("grid", reading(grid_w=-20.0)))["text"] == "0.0kW"
 
 
 def test_real_values_untouched():
@@ -61,8 +73,9 @@ def test_real_values_untouched():
 
 
 def test_deadband_is_configurable():
-    assert json.loads(payload_for("solar", reading(solar_w=8.0), deadband=10))["text"] == "0W"
-    assert json.loads(payload_for("solar", reading(solar_w=8.0), deadband=0))["text"] == "8W"
+    # Only observable above the kW rounding floor, hence 80W rather than 8W.
+    assert json.loads(payload_for("solar", reading(solar_w=80.0), deadband=100))["text"] == "0.0kW"
+    assert json.loads(payload_for("solar", reading(solar_w=80.0), deadband=0))["text"] == "0.1kW"
 
 
 def test_soc_percentage_is_not_deadbanded():
@@ -72,7 +85,7 @@ def test_soc_percentage_is_not_deadbanded():
 
 def test_icon_included_when_given():
     body = json.loads(payload_for("solar", reading(), icon="551"))
-    assert body == {"text": "59W", "icon": "551"}
+    assert body == {"text": "0.1kW", "icon": "551"}
 
 
 ICONS = {

@@ -40,14 +40,23 @@ def apply_deadband(watts: float, deadband: float) -> float:
     return 0.0 if abs(watts) <= deadband else watts
 
 
-def format_power(watts: float, signed: bool = False) -> str:
-    """450 -> "450W", 5240 -> "5.2kW"; signed adds +/- for grid flow."""
-    sign = ""
-    if signed and watts > 0:
-        sign = "+"
-    if abs(watts) >= 1000:
-        return f"{sign}{watts / 1000:.1f}kW"
-    return f"{sign}{watts:.0f}W"
+def format_power(watts: float) -> str:
+    """618 -> "0.6kW", 5240 -> "5.2kW", -2300 -> "-2.3kW".
+
+    Always kW, never bare watts: one consistent unit is quicker to read at a
+    glance than a number whose scale you have to check first, and it keeps
+    the string short enough to avoid scrolling on a 32x8 matrix.
+
+    Import is the ordinary state for this system, so it reads as a bare
+    number like every other app. Only a negative sign is worth the pixels:
+    it means power is flowing the unusual way, out to the grid.
+    """
+    kw = round(watts / 1000, 1)
+    # Anything under 50W rounds to zero; render that as plain "0.0kW" rather
+    # than letting a small negative print as "-0.0kW".
+    if kw == 0:
+        kw = 0.0
+    return f"{kw:.1f}kW"
 
 
 def icon_for(
@@ -88,9 +97,7 @@ def payload_for(
     elif app == "load":
         body = {"text": format_power(apply_deadband(reading.load_w, deadband))}
     elif app == "grid":
-        body = {
-            "text": format_power(apply_deadband(reading.grid_w, deadband), signed=True)
-        }
+        body = {"text": format_power(apply_deadband(reading.grid_w, deadband))}
     else:
         raise ValueError(f"unknown awtrix app {app!r}")
     if icon:
