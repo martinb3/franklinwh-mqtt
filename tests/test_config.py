@@ -22,7 +22,7 @@ def test_defaults(monkeypatch):
     assert config.mqtt_port == 1883
     assert config.base_topic == "home/franklinwh"
     assert config.awtrix_prefix == ""
-    assert config.awtrix_apps == ("soc", "solar", "load", "grid")
+    assert config.awtrix_apps == ("soc", "solar", "load", "grid", "battery")
     assert config.poll_interval == 30
 
 

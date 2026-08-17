@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 
 from .awtrix import DEFAULT_CHARGE_THRESHOLD_W, DEFAULT_DEADBAND_W
 
-KNOWN_APPS = ("soc", "solar", "load", "grid")
+KNOWN_APPS = ("soc", "solar", "load", "grid", "battery")
 
 
 class ConfigError(Exception):

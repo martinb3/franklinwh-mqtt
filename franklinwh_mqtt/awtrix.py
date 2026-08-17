@@ -16,8 +16,11 @@ from .poller import Reading
 # (weather, planes, ...) can coexist in the rotation.
 APP_TOPIC = "{prefix}/custom/fwh_{app}"
 
-# Watts at or below this magnitude display as zero. See apply_deadband.
-DEFAULT_DEADBAND_W = 2.0
+# Watts below this magnitude display as zero. See apply_deadband. Matched to
+# the 0.1kW display granularity: anything smaller cannot be shown honestly
+# anyway, and rounding it to a signed 0.1kW would imply precision the display
+# does not have.
+DEFAULT_DEADBAND_W = 100.0
 
 # Battery power below this magnitude is not treated as a charge or discharge.
 # It has to clear the battery system's own standby draw: each aPower unit
@@ -29,34 +32,37 @@ DEFAULT_CHARGE_THRESHOLD_W = 100.0
 
 
 def apply_deadband(watts: float, deadband: float) -> float:
-    """Collapse sensor noise around zero to exactly zero.
+    """Collapse small readings in either direction to exactly zero.
 
-    The gateway idles at a watt or two in either direction — solar reading
-    -1W after dark, grid reading +3W with nothing happening. Below the
-    deadband there is no signal worth showing, and a flickering sign is
-    worse than a steady 0. Anything larger passes through untouched, so a
-    genuine anomaly (negative solar in daylight) stays visible.
+    Two things live down here: sensor noise (solar reading -1W after dark)
+    and real but negligible flows (the batteries' ~55W standby draw). Neither
+    is worth a sign on the display, and a flickering +/- is worse than a
+    steady 0. Anything at or above the deadband passes through untouched, so
+    a genuine anomaly stays visible.
     """
-    return 0.0 if abs(watts) <= deadband else watts
+    return 0.0 if abs(watts) < deadband else watts
 
 
-def format_power(watts: float) -> str:
+def format_power(watts: float, signed: bool = False) -> str:
     """618 -> "0.6kW", 5240 -> "5.2kW", -2300 -> "-2.3kW".
 
     Always kW, never bare watts: one consistent unit is quicker to read at a
     glance than a number whose scale you have to check first, and it keeps
     the string short enough to avoid scrolling on a 32x8 matrix.
 
-    Import is the ordinary state for this system, so it reads as a bare
-    number like every other app. Only a negative sign is worth the pixels:
-    it means power is flowing the unusual way, out to the grid.
+    `signed` marks the apps that represent a source the house can draw from
+    or push back into (the utility and the batteries): "+" means it is
+    supplying the house, "-" means it is absorbing. Zero takes no sign at
+    all, since nothing is flowing in either direction.
     """
     kw = round(watts / 1000, 1)
-    # Anything under 50W rounds to zero; render that as plain "0.0kW" rather
-    # than letting a small negative print as "-0.0kW".
+    # The sign is decided on the rounded value, not the raw watts: 39W rounds
+    # to zero and must print as a plain "0.0kW", not "+0.0kW". This also
+    # keeps a small negative from printing as "-0.0kW".
     if kw == 0:
-        kw = 0.0
-    return f"{kw:.1f}kW"
+        return "0.0kW"
+    sign = "+" if signed and kw > 0 else ""
+    return f"{sign}{kw:.1f}kW"
 
 
 def icon_for(
@@ -73,12 +79,12 @@ def icon_for(
     has to clear a threshold before it counts as either direction. Falls back
     to the plain icon whenever a direction-specific one was not configured.
     """
-    if app == "soc":
+    if app in ("soc", "battery"):
         flow = reading.battery_w
-        if flow <= -charge_threshold and icons.get("soc_charging"):
-            return icons["soc_charging"]
-        if flow >= charge_threshold and icons.get("soc_discharging"):
-            return icons["soc_discharging"]
+        if flow <= -charge_threshold and icons.get(f"{app}_charging"):
+            return icons[f"{app}_charging"]
+        if flow >= charge_threshold and icons.get(f"{app}_discharging"):
+            return icons[f"{app}_discharging"]
     return icons.get(app)
 
 
@@ -97,7 +103,19 @@ def payload_for(
     elif app == "load":
         body = {"text": format_power(apply_deadband(reading.load_w, deadband))}
     elif app == "grid":
-        body = {"text": format_power(apply_deadband(reading.grid_w, deadband))}
+        # A source: "+" while importing, "-" while exporting.
+        body = {
+            "text": format_power(apply_deadband(reading.grid_w, deadband), signed=True)
+        }
+    elif app == "battery":
+        # Also a source: "+" while discharging into the house, "-" while
+        # charging. Separate from soc, which shows the level rather than the
+        # rate.
+        body = {
+            "text": format_power(
+                apply_deadband(reading.battery_w, deadband), signed=True
+            )
+        }
     else:
         raise ValueError(f"unknown awtrix app {app!r}")
     if icon:
