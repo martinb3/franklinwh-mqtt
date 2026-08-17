@@ -1,0 +1,4 @@
+# Pinned exactly: alpha package speaking a reverse-engineered protocol.
+# Review its changelog before moving this pin.
+franklinwh-local==0.1.0a0
+paho-mqtt>=2,<3
