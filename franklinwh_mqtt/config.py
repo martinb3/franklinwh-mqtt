@@ -9,7 +9,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 
-from .awtrix import DEFAULT_DEADBAND_W
+from .awtrix import DEFAULT_CHARGE_THRESHOLD_W, DEFAULT_DEADBAND_W
 
 KNOWN_APPS = ("soc", "solar", "load", "grid")
 
@@ -59,6 +59,7 @@ class Config:
     awtrix_apps: tuple[str, ...] = KNOWN_APPS
     awtrix_icons: dict[str, str] = field(default_factory=dict)
     awtrix_deadband_w: float = DEFAULT_DEADBAND_W
+    awtrix_charge_threshold_w: float = DEFAULT_CHARGE_THRESHOLD_W
     poll_interval: int = 30
     stale_after: int = 180
     listen_port: int = 8000
@@ -95,6 +96,9 @@ class Config:
             awtrix_apps=apps,
             awtrix_icons=icons,
             awtrix_deadband_w=_float("AWTRIX_DEADBAND_W", DEFAULT_DEADBAND_W),
+            awtrix_charge_threshold_w=_float(
+                "AWTRIX_CHARGE_THRESHOLD_W", DEFAULT_CHARGE_THRESHOLD_W
+            ),
             poll_interval=_int("POLL_INTERVAL_SECONDS", 30),
             stale_after=_int("STALE_AFTER_SECONDS", 180),
             listen_port=_int("LISTEN_PORT", 8000),

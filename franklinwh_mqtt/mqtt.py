@@ -79,7 +79,12 @@ class Publisher:
             for app in self._config.awtrix_apps:
                 topic = APP_TOPIC.format(prefix=self._config.awtrix_prefix, app=app)
                 deadband = self._config.awtrix_deadband_w
-                icon = icon_for(app, reading, self._config.awtrix_icons, deadband)
+                icon = icon_for(
+                    app,
+                    reading,
+                    self._config.awtrix_icons,
+                    charge_threshold=self._config.awtrix_charge_threshold_w,
+                )
                 self._publish(
                     topic, payload_for(app, reading, icon, deadband=deadband)
                 )

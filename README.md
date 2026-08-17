@@ -30,6 +30,7 @@ Not affiliated with or endorsed by FranklinWH.
 | `AWTRIX_ICON_<APP>` | *(none)* | Optional icon ID per app, e.g. `AWTRIX_ICON_SOC=120` |
 | `AWTRIX_ICON_SOC_CHARGING` / `..._DISCHARGING` | *(none)* | Battery icon swapped by charge direction; falls back to `AWTRIX_ICON_SOC` |
 | `AWTRIX_DEADBAND_W` | `2` | Displayed watts at or below this magnitude show as `0W`. Suppresses idle sensor noise (`-1W` solar after dark); telemetry topics keep the raw value. `0` disables. |
+| `AWTRIX_CHARGE_THRESHOLD_W` | `100` | Battery power must exceed this before the icon reports charging or discharging. Must clear the battery system's standby draw — each aPower unit pulls ~25-30W for its own electronics even when idle. |
 | `POLL_INTERVAL_SECONDS` | `30` | Seconds between polls |
 | `STALE_AFTER_SECONDS` | `180` | Age after which data is flagged stale |
 | `LISTEN_PORT` | `8000` | Health endpoint port (`/healthz`, `/readyz`) |

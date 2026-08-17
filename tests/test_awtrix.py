@@ -91,10 +91,24 @@ def test_icon_shows_discharging_when_battery_power_positive():
     assert icon_for("soc", reading(battery_w=2200.0), ICONS) == "amber"
 
 
-def test_icon_idle_within_deadband():
-    # A watt or two either way is noise, not a charge cycle.
-    assert icon_for("soc", reading(battery_w=-1.0), ICONS) == "plain"
-    assert icon_for("soc", reading(battery_w=0.0), ICONS) == "plain"
+@pytest.mark.parametrize("watts", [0.0, -1.0, -27.0, -53.0, -54.0, -99.0, 60.0])
+def test_standby_draw_is_not_charging(watts):
+    """Two idle aPower units pull ~55W for their own electronics.
+
+    Observed on real hardware: p_fhp sat at -53W for minutes while SOC and
+    the gateway's cumulative charge counter never moved. That must read as
+    idle, not as a charge cycle.
+    """
+    assert icon_for("soc", reading(battery_w=watts), ICONS) == "plain"
+
+
+def test_threshold_boundary_is_inclusive():
+    assert icon_for("soc", reading(battery_w=-100.0), ICONS) == "green"
+    assert icon_for("soc", reading(battery_w=100.0), ICONS) == "amber"
+
+
+def test_charge_threshold_is_configurable():
+    assert icon_for("soc", reading(battery_w=-60.0), ICONS, charge_threshold=50) == "green"
 
 
 def test_icon_falls_back_when_state_icons_absent():

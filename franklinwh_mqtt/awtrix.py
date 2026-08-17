@@ -19,6 +19,14 @@ APP_TOPIC = "{prefix}/custom/fwh_{app}"
 # Watts at or below this magnitude display as zero. See apply_deadband.
 DEFAULT_DEADBAND_W = 2.0
 
+# Battery power below this magnitude is not treated as a charge or discharge.
+# It has to clear the battery system's own standby draw: each aPower unit
+# pulls roughly 25-30W for its electronics, so a two-unit system idles near
+# -55W while the cells sit untouched — the gateway's cumulative charge counter
+# does not move and SOC does not budge. A threshold below that draw would
+# report "charging" all night.
+DEFAULT_CHARGE_THRESHOLD_W = 100.0
+
 
 def apply_deadband(watts: float, deadband: float) -> float:
     """Collapse sensor noise around zero to exactly zero.
@@ -46,19 +54,21 @@ def icon_for(
     app: str,
     reading: Reading,
     icons: dict,
-    deadband: float = DEFAULT_DEADBAND_W,
+    charge_threshold: float = DEFAULT_CHARGE_THRESHOLD_W,
 ) -> Optional[str]:
     """Pick an app's icon, varying the battery icon by charge direction.
 
     battery_w is positive while the batteries discharge into the house and
-    negative while they charge. Falls back to the plain icon whenever a
-    direction-specific one was not configured.
+    negative while they charge, but small negative values are just the
+    system's standby draw (see DEFAULT_CHARGE_THRESHOLD_W), so the reading
+    has to clear a threshold before it counts as either direction. Falls back
+    to the plain icon whenever a direction-specific one was not configured.
     """
     if app == "soc":
-        flow = apply_deadband(reading.battery_w, deadband)
-        if flow < 0 and icons.get("soc_charging"):
+        flow = reading.battery_w
+        if flow <= -charge_threshold and icons.get("soc_charging"):
             return icons["soc_charging"]
-        if flow > 0 and icons.get("soc_discharging"):
+        if flow >= charge_threshold and icons.get("soc_discharging"):
             return icons["soc_discharging"]
     return icons.get(app)
 
