@@ -27,8 +27,9 @@ Not affiliated with or endorsed by FranklinWH.
 | `MQTT_BASE_TOPIC` | `home/franklinwh` | Prefix for telemetry topics |
 | `AWTRIX_PREFIX` | *(empty = disabled)* | The clock's MQTT prefix, e.g. `awtrix_a1b2c3` |
 | `AWTRIX_APPS` | `soc,solar,load,grid,battery` | Which apps to publish. `soc` is the battery level; `battery` is its charge/discharge rate |
-| `AWTRIX_ICON_<APP>` | *(none)* | Optional icon ID per app, e.g. `AWTRIX_ICON_SOC=120` |
-| `AWTRIX_ICON_SOC_CHARGING` / `..._DISCHARGING` | *(none)* | Battery icon swapped by charge direction; falls back to `AWTRIX_ICON_SOC` |
+| `AWTRIX_ICON_<APP>` | *(none)* | Optional icon per app, e.g. `AWTRIX_ICON_SOC=fwh_soc` |
+| `AWTRIX_ICON_SOC_CHARGING` / `..._DISCHARGING` | *(none)* | Battery-level icon swapped by charge direction; falls back to `AWTRIX_ICON_SOC` |
+| `AWTRIX_ICON_BATTERY_CHARGING` / `..._DISCHARGING` | *(none)* | Same, for the battery-rate app; falls back to `AWTRIX_ICON_BATTERY` |
 | `AWTRIX_DEADBAND_W` | `100` | Displayed watts below this magnitude show as an unsigned `0.0kW`. Matches the 0.1kW display granularity, so sensor noise and the batteries' ~55W standby draw never get a misleading sign. Telemetry topics keep the raw value. `0` disables. |
 | `AWTRIX_CHARGE_THRESHOLD_W` | `100` | Battery power must exceed this before the icon reports charging or discharging. Must clear the battery system's standby draw — each aPower unit pulls ~25-30W for its own electronics even when idle. |
 | `POLL_INTERVAL_SECONDS` | `30` | Seconds between polls |
@@ -43,10 +44,33 @@ Not affiliated with or endorsed by FranklinWH.
 | `home/franklinwh/state` | Full JSON: `soc`, `battery_soc_each`, `solar_w`, `load_w`, `grid_w`, `battery_w`, `generator_w`, daily `kwh` counters, `ts`, `stale` |
 | `home/franklinwh/soc` … `/generator_w` | Individual scalar values |
 | `home/franklinwh/status` | `online` / `stale`; MQTT Last Will sets `offline` |
-| `<AWTRIX_PREFIX>/custom/fwh_soc` etc. | Awtrix custom-app JSON, e.g. `{"text":"87%"}` |
+| `<AWTRIX_PREFIX>/custom/fwh_{soc,solar,load,grid,battery}` | Awtrix custom-app JSON, e.g. `{"text":"87%","icon":"fwh_soc"}` |
 
-Sign conventions: `grid_w` positive = importing, negative = exporting;
-`battery_w` positive = batteries discharging into the home.
+Sign conventions in the data: `grid_w` positive = importing, negative =
+exporting; `battery_w` positive = batteries discharging into the home.
+
+## How values are displayed
+
+The telemetry topics always carry raw gateway values. These rules apply only
+to what is rendered on the clock, where a 32x8 matrix leaves about six
+characters beside an icon:
+
+- **Always kW**, one decimal. A consistent unit reads faster than one that
+  changes scale, and it bounds the string length. Display granularity is
+  therefore 0.1kW.
+- **Sources are signed**: the grid and battery apps show `+` when supplying
+  the house and `-` when absorbing it (importing/exporting, discharging/
+  charging). Solar and load are unsigned, since their direction is fixed.
+- **Zero is never signed.** The sign is decided on the rounded value, so a
+  39W flow shows `0.0kW`, not `+0.0kW`.
+- **Below `AWTRIX_DEADBAND_W` reads as zero.** The default 100W matches the
+  0.1kW granularity, and is deliberately above the ~55W an idle two-unit
+  battery system draws for its own electronics — otherwise standby draw
+  displays as a charge.
+- **The battery icon follows direction**, not the number: green charging,
+  amber discharging, grey idle, using `AWTRIX_CHARGE_THRESHOLD_W`. Keep that
+  threshold and the deadband equal, or the icon and the number will disagree
+  near the boundary.
 
 ## Running
 
