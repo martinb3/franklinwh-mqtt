@@ -9,6 +9,8 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 
+from .awtrix import DEFAULT_DEADBAND_W
+
 KNOWN_APPS = ("soc", "solar", "load", "grid")
 
 
@@ -33,6 +35,16 @@ def _int(name: str, default: int) -> int:
         raise ConfigError(f"{name} must be an integer, got {raw!r}") from exc
 
 
+def _float(name: str, default: float) -> float:
+    raw = os.environ.get(name, "").strip()
+    if not raw:
+        return default
+    try:
+        return float(raw)
+    except ValueError as exc:
+        raise ConfigError(f"{name} must be a number, got {raw!r}") from exc
+
+
 @dataclass
 class Config:
     fwh_host: str
@@ -46,6 +58,7 @@ class Config:
     awtrix_prefix: str = ""
     awtrix_apps: tuple[str, ...] = KNOWN_APPS
     awtrix_icons: dict[str, str] = field(default_factory=dict)
+    awtrix_deadband_w: float = DEFAULT_DEADBAND_W
     poll_interval: int = 30
     stale_after: int = 180
     listen_port: int = 8000
@@ -60,10 +73,14 @@ class Config:
             raise ConfigError(
                 f"AWTRIX_APPS contains unknown app(s) {unknown}; known: {list(KNOWN_APPS)}"
             )
+        # Any AWTRIX_ICON_* variable becomes an icon keyed by its suffix, so
+        # state-specific names (AWTRIX_ICON_SOC_CHARGING) work alongside the
+        # per-app ones without this needing to know every state up front.
+        prefix = "AWTRIX_ICON_"
         icons = {
-            app: os.environ[f"AWTRIX_ICON_{app.upper()}"].strip()
-            for app in apps
-            if os.environ.get(f"AWTRIX_ICON_{app.upper()}", "").strip()
+            key[len(prefix) :].lower(): value.strip()
+            for key, value in os.environ.items()
+            if key.startswith(prefix) and value.strip()
         }
         return cls(
             fwh_host=_require("FWH_HOST"),
@@ -77,6 +94,7 @@ class Config:
             awtrix_prefix=os.environ.get("AWTRIX_PREFIX", "").strip().rstrip("/"),
             awtrix_apps=apps,
             awtrix_icons=icons,
+            awtrix_deadband_w=_float("AWTRIX_DEADBAND_W", DEFAULT_DEADBAND_W),
             poll_interval=_int("POLL_INTERVAL_SECONDS", 30),
             stale_after=_int("STALE_AFTER_SECONDS", 180),
             listen_port=_int("LISTEN_PORT", 8000),

@@ -28,6 +28,8 @@ Not affiliated with or endorsed by FranklinWH.
 | `AWTRIX_PREFIX` | *(empty = disabled)* | The clock's MQTT prefix, e.g. `awtrix_a1b2c3` |
 | `AWTRIX_APPS` | `soc,solar,load,grid` | Which apps to publish |
 | `AWTRIX_ICON_<APP>` | *(none)* | Optional icon ID per app, e.g. `AWTRIX_ICON_SOC=120` |
+| `AWTRIX_ICON_SOC_CHARGING` / `..._DISCHARGING` | *(none)* | Battery icon swapped by charge direction; falls back to `AWTRIX_ICON_SOC` |
+| `AWTRIX_DEADBAND_W` | `2` | Displayed watts at or below this magnitude show as `0W`. Suppresses idle sensor noise (`-1W` solar after dark); telemetry topics keep the raw value. `0` disables. |
 | `POLL_INTERVAL_SECONDS` | `30` | Seconds between polls |
 | `STALE_AFTER_SECONDS` | `180` | Age after which data is flagged stale |
 | `LISTEN_PORT` | `8000` | Health endpoint port (`/healthz`, `/readyz`) |
@@ -56,6 +58,20 @@ FWH_HOST=... FWH_SERIAL=... MQTT_HOST=... MQTT_USER=... MQTT_PASSWORD=... \
 Container images are published to `ghcr.io/martinb3/franklinwh-mqtt` by the
 `Build image` workflow (x86-64 only; the Dockerfile itself is architecture
 independent).
+
+## Icons
+
+`icons/` holds an 8x8 icon per app (battery, sun, house, transmission pylon)
+plus the script that draws them. Icons live only on the clock's flash, so a
+re-flash with "erase" wipes them; regenerate and re-upload with:
+
+```sh
+python icons/generate_icons.py --out icons/ --upload <clock-host>
+```
+
+Then point the bridge at them with `AWTRIX_ICON_SOC=fwh_soc`,
+`AWTRIX_ICON_SOLAR=fwh_solar`, and so on (Awtrix references an icon by
+filename without its extension).
 
 ## Development
 

@@ -1,2 +1,4 @@
 -r requirements.txt
 pytest>=8
+# icons/generate_icons.py only — not needed by the bridge at runtime.
+pillow>=10

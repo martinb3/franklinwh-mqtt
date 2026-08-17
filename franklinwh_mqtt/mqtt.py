@@ -12,7 +12,7 @@ import logging
 
 import paho.mqtt.client as paho
 
-from .awtrix import APP_TOPIC, payload_for
+from .awtrix import APP_TOPIC, icon_for, payload_for
 from .config import Config
 from .poller import Reading
 
@@ -78,8 +78,11 @@ class Publisher:
         if self._config.awtrix_prefix:
             for app in self._config.awtrix_apps:
                 topic = APP_TOPIC.format(prefix=self._config.awtrix_prefix, app=app)
-                icon = self._config.awtrix_icons.get(app)
-                self._publish(topic, payload_for(app, reading, icon))
+                deadband = self._config.awtrix_deadband_w
+                icon = icon_for(app, reading, self._config.awtrix_icons, deadband)
+                self._publish(
+                    topic, payload_for(app, reading, icon, deadband=deadband)
+                )
 
     def publish_status(self, status: str) -> None:
         self._publish(self.status_topic, status)
